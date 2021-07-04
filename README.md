@@ -2,10 +2,10 @@
 
 In this repository, code to reproduce the results in the [arXiv preprint](https://arxiv.org/abs/2012.00634) on learning individual trajectories by integrating ODE systems into a VAE latent space based on data from only two time points is hosted. 
 
-![](figures/example_nonlinear.png)
-
 > Maren Hackenberg, Philipp Harms, Thorsten Schmidt and Harald Binder (2020): Deep dynamic modeling with just two time points: Can we still allow for individual trajectories?
 > arXiv preprint: https://arxiv.org/abs/2012.00634
+
+![](figures/example_nonlinear.png)
 
 The project addresses a questions often coming up in the context of newly set-up epidemiological cohort studies and clinical registries: What can be learned from the data in an early phase of the study, when only a baseline characterization and one (or very few) follow-up measurement are available? 
 Since such longitudinal biomedical data are often characterized by a sparse time grid and individual-specific development patterns and are thus challenging to model, we investigate whether combining deep learning with dynamic modeling can be useful for uncovering complex structure in such small data settings. 
