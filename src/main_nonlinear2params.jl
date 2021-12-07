@@ -47,6 +47,10 @@ sol_group2 = solve(lvprob2, Tsit5(), saveat = dt);
 #plot(sol_group1)
 #plot(sol_group2)
 
+#------------------------------
+# Simulate data based on true trajectories
+#------------------------------
+
 n = 200
 p = 10
 q, q_info = 50, 20 
@@ -73,9 +77,9 @@ plot(plot_truesolution(2, data, sol_group1, sol_group2, showdata=false),
     legend = false
 )
 
-"""
-Define and train model
-"""
+#------------------------------
+# Define and train model
+#------------------------------
 
 zdim = nODEparams = 2
 m = init_vae(p, q, zdim, nODEparams, lvprob2, seed=84)
@@ -91,10 +95,10 @@ for epoch in 1:40
     evalcb()
     evalcb_zs()
 end
-_
-"""
-Look at results
-"""
+
+#------------------------------
+# Look at results
+#------------------------------
 
 plot(allindsplot(2, data, m, sol_group1, sol_group2),
     allindsplot(1, data, m, sol_group1, sol_group2, showlegend=false),
