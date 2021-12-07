@@ -1,10 +1,17 @@
-"""
-Setup 
-"""
+#------------------------------
+# Linear ODE system with two unkown parameters
+#------------------------------
+
+
+#------------------------------
+# Setup 
+#------------------------------
 
 using Pkg;
 
-Pkg.activate(".")
+# all paths are relative to the repository main folder
+
+Pkg.activate("src/.")
 Pkg.instantiate()
 Pkg.status()
 
@@ -12,8 +19,7 @@ using Distributions
 using Random
 using Flux
 using DiffEqFlux
-using Optim
-using DifferentialEquations
+using OrdinaryDiffEq
 using Plots 
 using LaTeXStrings
 gr()
@@ -22,17 +28,9 @@ include("simulation.jl")
 include("model.jl")
 include("plotting.jl")
 
-"""
-Define and obtain ground-truth developments
-"""
-
-# define true underlying ODE system
-function linear_2d_system(du,u,p,t)
-    a11, a12, a21, a22 = p
-    z1,z2 = u
-    du[1] = dz1 = a11 * z1 + a12 * z2
-    du[2] = dz2 = a21 * z1 + a22 * z2
-end
+#------------------------------
+# Define and obtain ground-truth developments
+#------------------------------
   
 # define initial condition
 true_u0 = Float32[2, 1]
@@ -51,9 +49,9 @@ dt=0.1
 sol_group1 = solve(prob1, Tsit5(), saveat = dt);
 sol_group2 = solve(prob2, Tsit5(), saveat = dt);
 
-"""
-Simulate data based on true trajectories
-"""
+#------------------------------
+# Simulate data based on true trajectories
+#------------------------------
 
 # define numbers of individuals and variables 
 n = 100 
@@ -61,18 +59,18 @@ p = 10
 q, q_info = 50, 10
 
 # choose simulation setting for baseline variables 
-baseline_simulation = "trueparams" # alternative: "groupsonly"
+baseline_simulation = "groupsonly" # alternatives: "trueparams" or "groupsonly"
 
 # set seed for reproducibility
 Random.seed!(12);
 
 # generate time dependent variables
-xs, tvals, group1, group2 = generate_xs(n, p, true_u0, sol_group1, sol_group2); # default vals: t_start=1.5, t_end=10, maxntps=10, dt=0.1, σ_var=0.1, σ_ind=0.5
+xs, tvals, group1, group2 = generate_xs(n, p, true_u0, sol_group1, sol_group2, maxntps=1, σ_var=0.1, σ_ind=0.1); # default vals: t_start=1.5, t_end=10, maxntps=10, dt=0.1, σ_var=0.1, σ_ind=0.5
 # generate baseline variables
 if baseline_simulation == "trueparams"
     x_baseline = generate_baseline(n, q, q_info, group1, true_odeparams_group1, true_odeparams_group2); # defaul vals: σ_info=0.1, σ_noise=0.1
 elseif baseline_simulation == "groupsonly"
-    x_baseline = generate_baseline(n, q, q_info, group1); # default vals: σ_info=1, σ_noise=1
+    x_baseline = generate_baseline(n, q, q_info, group1,  σ_info=0.5, σ_noise=0.5); # default vals: σ_info=1, σ_noise=1
 else
     error("Please select either 'trueparams' or 'groupsonly' as mode for simulation of baseline variables")
 end
@@ -88,9 +86,9 @@ plot(plot_truesolution(2, data, sol_group1, sol_group2, showdata=false),
     legend = false
 )
 
-"""
-Define and train model
-"""
+#------------------------------
+# Define and train model
+#------------------------------
 
 zdim = nODEparams = 2
 m = init_vae(p, q, zdim, nODEparams, prob1)
@@ -99,19 +97,25 @@ ps = getparams(m)
 opt = ADAM(0.0005)
 trainingdata = zip(xs, x_baseline, tvals);
 evalcb() = @show(mean(L.(xs, x_baseline, tvals)))
-evalcb_zs() = eval_z_trajectories(xs, x_baseline, tvals, group1, sol_group1, sol_group2, m, dt)
+evalcb_zs() = eval_z_trajectories(xs, x_baseline, tvals, group1, sol_group1, sol_group2, m, dt, swapcolorcoding=true)
 
-for i in 1:40
+for epoch in 1:35
     Flux.train!(L, ps, trainingdata, opt)
     evalcb()
     evalcb_zs()
 end
 
-"""
-Look at results
-"""
+#------------------------------
+# Look at results
+#------------------------------
 
-plot(allindsplot(2, data, m, sol_group1, sol_group2),
-    allindsplot(1, data, m, sol_group1, sol_group2),
-    layout = (1,2)
-)  
+# individual plots 
+p1 = plot_individual_solutions(20,xs, x_baseline, tvals, group1, sol_group1, sol_group2, m, dt, 
+                                swapcolorcoding=true, showlegend=true)
+p2 = plot_individual_solutions(28,xs, x_baseline, tvals, group1, sol_group1, sol_group2, m, dt, 
+                                swapcolorcoding=true, showlegend=false)
+p3 = allindsplot(2, data, m, sol_group1, sol_group2, swapcolorcoding=true)
+p4 = allindsplot(1, data, m, sol_group1, sol_group2, swapcolorcoding=true, showlegend=false)
+
+# solutions across the entire dataset
+plot(p3,p4, layout = (1,2))
