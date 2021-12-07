@@ -1,6 +1,6 @@
-"""
-some plotting functions
-"""
+#------------------------------
+# some plotting functions for simulated data
+#------------------------------
 
 struct simdata
     xs
@@ -8,14 +8,6 @@ struct simdata
     tvals
     group1
     group2
-end
-
-struct CohortData
-    cohort 
-    cohort_xs 
-    cohort_xs_baseline
-    cohort_tvals 
-    cohort_ids 
 end
 
 function plot_truesolution(group, data::simdata, sol_group1, sol_group2; showdata=true)
@@ -50,16 +42,17 @@ function plot_truesolution(group, data::simdata, sol_group1, sol_group2; showdat
     return curplot
 end
 
-function eval_z_trajectories(xs, x_params,tvals, group1, sol_group1, sol_group2, m, dt) # look at trajectories of first 9 individuals during training
+function eval_z_trajectories(xs, x_params,tvals, group1, sol_group1, sol_group2, m, dt; swapcolorcoding::Bool=false) # look at trajectories of first 9 individuals during training
     plotarray=[]
-    for ind in 1:4#9
+    for ind in 2:5#9
         curgroup = ind ∈ group1 ? 1 : 2
+        colors_truesol = swapcolorcoding ? ["#ff7f0e" "#1f77b4"] : ["#1f77b4" "#ff7f0e"]
         curxs = xs[ind]
         curmu, cursi = m.encodedμ(m.encoder(curxs)), m.encodedlogσ(m.encoder(curxs))
         curz = latentz.(curmu, cursi)
         learnedparams = m.paramNN(x_params[ind])
         if length(m.paramNN.layers[end].α) == 2
-            curparams = Float32[learnedparams[1], 0.00, 0.00, learnedparams[2]]
+            curparams = Float32[learnedparams[1], m.ODEprob.p[2], m.ODEprob.p[3], learnedparams[2]]
         else
             curparams = learnedparams
         end    
@@ -67,9 +60,10 @@ function eval_z_trajectories(xs, x_params,tvals, group1, sol_group1, sol_group2,
         origt1s = repeat([tvals[ind]], length(curxs[:,1]))
         origxst0 = curxs[:,1]
         origxsotherts = curxs[:,2:end]
-        curprob = ODEProblem(linear_2d_system,curmu[:,1],tspan,curparams)
-        cursol = solve(curprob, Tsit5(), saveat = dt)
-        curplot = curgroup == 1 ? plot(sol_group1.t, sol_group1'; legend=false, line=([:dot :dot], 3, ["#1f77b4" "#ff7f0e"])) : plot(sol_group2.t, sol_group2'; legend=false, line=([:dot :dot], 3, ["#1f77b4" "#ff7f0e"]))
+        #curprob = ODEProblem(linear_2d_system,curmu[:,1],tspan,curparams)
+        cursol = solve(m.ODEprob, Tsit5(), u0 = curmu[:,1], p=curparams, saveat = dt)
+        #cursol = solve(curprob, Tsit5(), saveat = dt)
+        curplot = curgroup == 1 ? plot(sol_group1.t, sol_group1'; legend=false, line=([:dot :dot], 3, colors_truesol)) : plot(sol_group2.t, sol_group2'; legend=false, line=([:dot :dot], 3, colors_truesol))
         plot!(cursol.t, cursol'; line=(2, ["#1f77b4" "#ff7f0e"]))
         Plots.scatter!(cat(0,tvals[ind], dims=1), curmu[1,:], marker = (:c, 4, "#1f77b4")) 
         Plots.scatter!(cat(0,tvals[ind], dims=1), curmu[2,:], marker = (:c, 4, "#ff7f0e"))
@@ -83,27 +77,67 @@ function eval_z_trajectories(xs, x_params,tvals, group1, sol_group1, sol_group2,
     display(myplot)
 end
 
-function allindsplot(group, data::simdata, m::odevae, sol_group1, sol_group2)
+function plot_individual_solutions(ind, xs, x_baseline,tvals, group1, sol_group1, sol_group2, m, dt; swapcolorcoding::Bool=false, showlegend::Bool=true) # look at trajectories of one individual after training 
+    curgroup = ind ∈ group1 ? 1 : 2
+    colors_truesol = swapcolorcoding ? ["#ff7f0e" "#1f77b4"] : ["#1f77b4" "#ff7f0e"]
+    if curgroup == 1
+        sol = sol_group1
+        legend = showlegend ? :topright : false
+        truesollabels = ""
+        smoothlabels = ""
+        label1 = ""
+        label2 = ""
+    else
+        sol = sol_group2
+        legend = showlegend ? :topleft : false
+        truesollabels = [L"\mathrm{true~}u_1" L"\mathrm{true~}u_2"]
+        smoothlabels = [L"\mathrm{smooth~}\mu_1" L"\mathrm{smooth~}\mu_2"]
+        label1 = L"\mu_1 \mathrm{~from~encoder}"
+        label2 = L"\mu_2 \mathrm{~from~encoder}"
+    end
+    curxs = xs[ind]
+    curmu, cursi = m.encodedμ(m.encoder(curxs)), m.encodedlogσ(m.encoder(curxs))
+    learnedparams = m.paramNN(x_baseline[ind])
+    if length(m.paramNN.layers[end].α) == 2
+        curparams = Float32[learnedparams[1], m.ODEprob.p[2], m.ODEprob.p[3], learnedparams[2]]
+    else
+        curparams = learnedparams
+    end    
+    cursol = solve(m.ODEprob, Tsit5(), u0 = curmu[:,1], p=curparams, saveat = dt)
+    curplot = plot(sol.t, sol'; labels=truesollabels, legend=legend, line=([:dot :dot], 3, colors_truesol))
+    plot!(cursol.t, cursol'; labels=smoothlabels, line=(2, ["#1f77b4" "#ff7f0e"]))
+    Plots.scatter!(cat(0,tvals[ind], dims=1), curmu[1,:], label = label1, marker = (:c, 6, "#1f77b4")) 
+    Plots.scatter!(cat(0,tvals[ind], dims=1), curmu[2,:], label = label2, marker = (:c, 6, "#ff7f0e"))
+    plot!(xlab="time", ylab="value of latent representation")
+    display(curplot)
+
+    return curplot
+
+end
+
+function allindsplot(group, data::simdata, m::odevae, sol_group1, sol_group2; swapcolorcoding::Bool=false, showlegend::Bool=true)
     # get data
     xs, x_params, tvals = data.xs, data.x_baseline, data.tvals
     # set parameters
     if group == 1
         sol = sol_group1
         groupinds = group1
-        legendposition = :topright
+        legendposition = showlegend ? :topright : false
         ylims = (-0.3,4.2)
     else
         sol = sol_group2
         groupinds = group2
-        legendposition = :topleft
+        legendposition = showlegend ? :topleft : false
         ylims = (-0.5,12)
     end
+
     # plot true solution
+    colors_truesol = swapcolorcoding ? ["#ff7f0e" "#1f77b4"] : ["#1f77b4" "#ff7f0e"]
     allindsplot1 = plot(sol.t, sol';
                     #ylims = ylims,
                     labels=[L"\mathrm{true~}u_1" L"\mathrm{true~}u_2"],
                     legend=legendposition,
-                    line=([:dot :dot], 4, ["#ff7f0e" "#1f77b4"])#["#e6550d" "#3182bd"])
+                    line=([:dot :dot], 4, colors_truesol)#["#e6550d" "#3182bd"])
     )
     # get data from group currently looked at
     groupxs = xs[groupinds]
@@ -115,12 +149,11 @@ function allindsplot(group, data::simdata, m::odevae, sol_group1, sol_group2)
         curmu, cursi = m.encodedμ(m.encoder(curxs)), m.encodedlogσ(m.encoder(curxs))
         learnedparams = m.paramNN(groupx_params[ind])
         if length(m.paramNN.layers[end].α) == 2
-            curparams = Float32[learnedparams[1], 0.00, 0.00, learnedparams[2]]
+            curparams = Float32[learnedparams[1], m.ODEprob.p[2], m.ODEprob.p[3], learnedparams[2]]
         else
             curparams = learnedparams
         end
-        curprob = ODEProblem(linear_2d_system,curmu[:,1],tspan,curparams)
-        cursol = solve(curprob, Tsit5(), saveat = dt)
+        cursol = solve(m.ODEprob, Tsit5(), u0 = curmu[:,1], p=curparams, saveat = dt)
         if ind == 2
             labels = [L"\mathrm{smooth~}\mu_1" L"\mathrm{smooth~}\mu_2"]
             label1 = L"\mu_1 \mathrm{~from~encoder}"
@@ -148,30 +181,65 @@ function allindsplot(group, data::simdata, m::odevae, sol_group1, sol_group2)
         Plots.scatter!(cat(0,grouptvals[ind], dims=1),curmu[1,:]; label=label1, marker=(:c,4,"#9ecae1"))
         Plots.scatter!(cat(0,grouptvals[ind], dims=1),curmu[2,:]; label=label2, marker=(:c,4,"#fdae6b"))
     end
+    plot!(xlab="time", ylab="value of latent representation")
 
     return allindsplot1
 
 end
 
-function create_cohortplot(m::odevae, cohort_data, tspan, dt)
-    cohortplot = plot()
-    for i in 1:length(cohort_data.cohort_xs)
-        curxs, curxs_baseline, curtvals = cohort_data.cohort_xs[i], cohort_data.cohort_xs_baseline[i], cohort_data.cohort_tvals[i]
-        curmu, cursi = m.encodedμ(m.encoder(curxs)), m.encodedlogσ(m.encoder(curxs))
-        learnedparams = m.paramNN(curxs_baseline)
-        if length(m.paramNN.layers[end].α) == 2
-            curparams = Float32[learnedparams[1], 0.00, 0.00, learnedparams[2]]
-        else
-            curparams = learnedparams
-        end
-        curprob = ODEProblem(linear_2d_system,curmu[:,1],tspan,curparams)
-        cursol = solve(curprob, Tsit5(), saveat = dt)
-        plot!(cursol.t, cursol'; line=(0.5, ["#3182bd" "#e6550d"]), legend=false)
-        Plots.scatter!(cat(0,curtvals, dims=1),curmu[1,:]; marker=(:c,4,"#9ecae1"), legend=false)
-        Plots.scatter!(cat(0,curtvals, dims=1),curmu[2,:]; marker=(:c,4,"#fdae6b"), legend=false, title="cohort $(cohort_data.cohort)")
+function plot_batch_solution(ind, xs, x_baseline, tvals, group1, sol_group1, sol_group2, m, dt; swapcolorcoding::Bool=false, showlegend::Bool=true)
+    distmat = getdistmat_odesols_mean(m, xs, x_baseline; centralise=true);
+    minibatches, batch_weights = findminibatches_distmat(distmat, batchsize, kernel);
+    batch_xs = collect(xs[minibatches[i]] for i in 1:length(xs));
+    batch_x_baseline = collect(x_baseline[minibatches[i]] for i in 1:length(x_baseline));
+    batch_tvals = collect(tvals[minibatches[i]] for i in 1:length(tvals));
+
+    curgroup = ind ∈ group1 ? 1 : 2
+    colors_truesol = swapcolorcoding ? ["#fd8d3c" "#6baed6"] : ["#6baed6" "#fd8d3c"]
+    curxs = batch_xs[ind][1] # reference individual 
+    curmu, cursi = m.encodedμ(m.encoder(curxs)), m.encodedlogσ(m.encoder(curxs))
+    curparams = m.paramNN(batch_x_baseline[ind][1])
+    cursol = solve(m.ODEprob, Tsit5(), u0 = curmu[:,1], p = curparams, saveat = dt)
+    if curgroup == 1
+        curplot = plot(sol_group1.t, sol_group1';
+                        labels=[L"\mathrm{true~}u_1" L"\mathrm{true~}u_2"],
+                        legend=showlegend ? :topright : false,
+                        line=([:dot, :dot], 3, colors_truesol)#orange, blue
+                        #size=(1000,500)
+                        )
+    else
+        curplot = plot(sol_group2.t, sol_group2';
+                        labels=[L"\mathrm{true~}u_1" L"\mathrm{true~}u_2"],
+                        legend=showlegend ? :topleft : false,
+                        line=([:dot, :dot], 3, colors_truesol),
+                        #size=(1000,500)
+                        )
     end
-    return cohortplot
+    for i in 2:batchsize
+        bcurxs = batch_xs[ind][i]
+        bcurmu, bcursi = m.encodedμ(m.encoder(bcurxs)), m.encodedlogσ(m.encoder(bcurxs))
+        bcurparams = m.paramNN(batch_x_baseline[ind][i])
+        bcursol = solve(m.ODEprob, Tsit5(), u0 = bcurmu[:,1], p = bcurparams, saveat = dt)
+        if i==batchsize
+            labels = [L"\mathrm{smooth~}\mu_1\mathrm{~batch~individual}" L"\mathrm{smooth~}\mu_2\mathrm{~batch~individual}"]
+            label1 = L"\mu_1\mathrm{~from~encoder,~batch~individual}"
+            label2 = L"\mu_2\mathrm{~from~encoder,~batch~individual}"
+        else
+            labels, label1, label2="", "", ""
+        end
+        plot!(bcursol.t, bcursol'; labels=labels, line=(0.5, ["#9ecae1" "#fdae6b"])) # blue, orange
+        scatter!(cat(0,batch_tvals[ind][i], dims=1), bcurmu[1,:]; label=label1, marker=(:c,4,"#9ecae1"))
+        scatter!(cat(0,batch_tvals[ind][i], dims=1), bcurmu[2,:]; label=label2, marker=(:c,4,"#fdae6b"))
+    end
+    plot!(cursol.t, cursol';
+        labels=[L"\mathrm{smooth~}\mu_1\mathrm{~reference~individual}" L"\mathrm{smooth~}\mu_2\mathrm{~reference~individual}"],
+        line=(2.5, ["#1f77b4" "#e6550d"])
+        )
+    scatter!(cat(0,batch_tvals[ind][1], dims=1),curmu[1,:];
+        label = L"\mu_1\mathrm{~from~encoder,~reference~individual}", marker=(:c,7,"#1f77b4"))
+    scatter!(cat(0,batch_tvals[ind][1], dims=1),curmu[2,:];
+        label = L"\mu_2\mathrm{~from~encoder,~reference~individual}", marker=(:c,7,"#e6550d"))
+    plot!(xlab="time", ylab="value of latent representation")
+    display(curplot)
+    return curplot 
 end
-
-
-
