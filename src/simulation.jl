@@ -1,6 +1,6 @@
-"""
-functions to simulate data 
-"""
+#------------------------------
+# functions to simulate data 
+#------------------------------
 
 function generate_xs(n, p, true_u0, sol_group1, sol_group2; t_start=1.5, t_end=10, maxntps = 10, dt=0.1, σ_var=0.1, σ_ind=0.5)
 
@@ -102,51 +102,3 @@ function generate_baseline_4params(n, q, q_info, group1, true_odeparams_group1, 
     x_params = [[rand(Normal(means[i,j],vars[j])) for j in 1:q] for i in 1:n]
     return x_params
 end
-
-#= # not yet adapted to multiple time points! 
-function generate_xs_nonlinear(n, p, true_u0, sol_group1, sol_group2; t_start=0, t_end=10, dt=0.1, σ_var=0.1, σ_ind=0.1)
-
-    # (1) generate artifical group labels
-    groups = zeros(n)
-    groups[randperm(n)[1:Int(floor(n/2))]] .= 1 # for groups of the same size
-    group1 = findall(x -> x==1, groups)
-    group2 = findall(x -> x==0, groups)
-
-    # (2) generate artificial time stamps
-    tvals = [rand(t_start:dt:t_end) for i in 1:n]
-
-    # (3) obtain true values as solutions of the ODEs at the initial time point and the drawn second time point 
-    # check for equal number of variables:
-    if p%2 != 0
-        error("Please select an even number of variables")
-    end
-    # true starting point
-    z_t0_p1 = true_u0[1]     # for variables 1-p1
-    z_t0_p2 = true_u0[2]     # for variables (p1+1)-p 
-    z_t0 = repeat([z_t0_p1, z_t0_p2], inner=Int(p/2))
-
-    # now solve ODE system to obtain true temporal development value
-    # for all individuals in both variables u1 and u2
-    z_t1 = collect((i ∈ group1) ? (sol_group1[Int(round(tvals[i]*(1/dt))+1)]) : (sol_group2[Int(round(tvals[i]*(1/dt))+1)]) for i in 1:n)
-    z_t1_p1 = collect(z_t1[i][1] for i in 1:n)
-    z_t1_p2 = collect(z_t1[i][2] for i in 1:n)
-    z_t1_mat = cat(repeat(z_t1_p1,1,Int(p/2)), repeat(z_t1_p2,1,Int(p/2)), dims=2)
-
-    # (4) sample variable- specific and individual-specific errors at both time points
-    # variable specific random effect (general difficulty measuring that specific variable)
-    us_t0 = [rand(Normal(0,σ_var)) for i in 1:p]
-    us_t1 = [rand(Normal(0,σ_var)) for i in 1:p]
-
-    # individual specific measurement error
-    eps_t0 = randn(n,p) .* σ_ind#0.5#0.1
-    eps_t1 = randn(n,p) .* σ_ind#0.5#0.1
-
-    # add those to the true values and combine everything 
-    # combine all to xs: x_ij(t) = z(t) + u_j + eps_ij; i=1,...,n, j=1,...,p
-    x_t0 = cat([cat([z_t0[j] .+ us_t0[j] .+ eps_t0[i,j] for i in 1:n]..., dims=1) for j in 1:p]..., dims=2)
-    x_t1 = cat([cat([z_t1_mat[i,j] .+ us_t1[j] .+ eps_t1[i,j] for i in 1:n]..., dims=1) for j in 1:p]..., dims=2)
-    # (5) combine everything into one array 
-    xs = [hcat(x_t0[i,:], x_t1[i,:]) for i in 1:size(x_t0,1)]
-    return xs, tvals, group1, group2
-end
-=# 
