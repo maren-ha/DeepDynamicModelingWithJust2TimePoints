@@ -109,13 +109,13 @@ function plot_individual_solutions(ind, xs, x_baseline,tvals, group1, sol_group1
     Plots.scatter!(cat(0,tvals[ind], dims=1), curmu[1,:], label = label1, marker = (:c, 6, "#1f77b4")) 
     Plots.scatter!(cat(0,tvals[ind], dims=1), curmu[2,:], label = label2, marker = (:c, 6, "#ff7f0e"))
     plot!(xlab="time", ylab="value of latent representation")
-    display(curplot)
+    #display(curplot)
 
     return curplot
 
 end
 
-function allindsplot(group, data::simdata, m::odevae, sol_group1, sol_group2; swapcolorcoding::Bool=false, showlegend::Bool=true)
+function allindsplot(group, data::simdata, m, sol_group1, sol_group2; swapcolorcoding::Bool=false, showlegend::Bool=true)
     # get data
     xs, x_params, tvals = data.xs, data.x_baseline, data.tvals
     # set parameters
