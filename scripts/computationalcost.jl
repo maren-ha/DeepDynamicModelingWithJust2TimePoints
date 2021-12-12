@@ -27,9 +27,9 @@ Pkg.instantiate()
 @everywhere using OrdinaryDiffEq
 @everywhere using SharedArrays
 
-@everywhere include("simulation.jl")
-@everywhere include("model.jl")
-@everywhere include("benchmarking.jl")
+@everywhere include("../src/simulation.jl")
+@everywhere include("../src/model.jl")
+@everywhere include("../src/benchmarking.jl")
 
 #------------------------------
 # Define and obtain ground-truth developments

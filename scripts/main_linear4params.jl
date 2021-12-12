@@ -11,7 +11,7 @@ using Pkg;
 
 # all paths are relative to the repository main folder
 
-Pkg.activate("src/.")
+Pkg.activate(".")
 Pkg.instantiate()
 Pkg.status()
 
@@ -24,10 +24,10 @@ using Plots
 using LaTeXStrings
 gr()
 
-include("simulation.jl")
-include("model.jl")
-include("batches.jl")
-include("plotting.jl") 
+include("../src/simulation.jl")
+include("../src/model.jl")
+include("../src/batches.jl")
+include("../src/plotting.jl")
 
 #------------------------------
 # define and obtain ground-truth developments
