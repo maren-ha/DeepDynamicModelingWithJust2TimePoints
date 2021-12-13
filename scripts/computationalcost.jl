@@ -149,9 +149,9 @@ end
 
 # if desired: save as JLD2 file 
 using JLD2 
-JLD2.@save "results/benchmarkresults.jld2" benchmarkarray
+JLD2.@save "benchmarkresults.jld2" benchmarkarray
 # and re-load from saved
-JLD2.@load "results/benchmarkresults.jld2" 
+JLD2.@load "benchmarkresults.jld2" 
 benchmarkarray = eval(:benchmarkarray)
 
 # copy back to dataframe, to be saved later as CSV
@@ -166,19 +166,16 @@ benchmarkdf[:,:prettymemory] = prettymemory.(benchmarkarray[:,6])
 
 # save entire dataframe as CSV
 using CSV 
-CSV.write("results/benchmarkresults.csv", benchmarkdf)
+CSV.write("benchmarkresults.csv", benchmarkdf)
 
-# extract tables as in manuscript appendix and save as CSV files
+# extract tables as in manuscript appendix (and save as CSV files)
 
 # different number of observations for fixed p (10) and q (50)
-rows_obs = findall(x -> x.n_vars == 10 && x.n_baselinevars == 50, eachrow(benchmarkdf))
-times_obs = benchmarkdf[rows_obs, [:n_obs, :time_in_seconds, :prettymemory]]
-CSV.write("results/benchmarkresults_obs.csv", times_obs)
+benchmark_obs = benchmarkdf[1:7, [:n_obs, :time_in_seconds, :prettymemory]]
+CSV.write("benchmarkresults_obs.csv", benchmark_obs)
 
-rows_vars = findall(x -> x.n_obs == 100 && x.n_baselinevars == 50, eachrow(benchmarkdf))
-times_vars = benchmarkdf[rows_vars, [:n_vars, :time_in_seconds, :prettymemory]]
-CSV.write("results/benchmarkresults_vars.csv", times_vars)
+benchmark_vars = benchmarkdf[8:12, [:n_vars, :time_in_seconds, :prettymemory]]
+CSV.write("benchmarkresults_vars.csv", benchmark_vars)
 
-rows_bvars = findall(x -> x.n_obs == 100 && x.n_vars == 10, eachrow(benchmarkdf))
-times_bvars = benchmarkdf[rows_bvars, [:n_baselinevars, :time_in_seconds, :prettymemory]]
-CSV.write("results/benchmarkresults_baselinevars.csv", times_bvars)
+benchmark_bvars = benchmarkdf[13:17, [:n_baselinevars, :time_in_seconds, :prettymemory]]
+CSV.write("benchmarkresults_baselinevars.csv", benchmark_bvars)
