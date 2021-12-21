@@ -4,7 +4,7 @@
 
 In this repository, code is hosted to reproduce the results in the [arXiv preprint](https://arxiv.org/abs/2012.00634) on learning individual trajectories by integrating ODE systems into a VAE latent space based on data from only two time points. 
 
-> Maren Hackenberg, Philipp Harms, Thorsten Schmidt and Harald Binder (2020): Deep dynamic modeling with just two time points: Can we still allow for individual trajectories?
+> Maren Hackenberg, Philipp Harms, Michelle Pfaffenlehner, Astrid Pechmann, Janbernd Kirschner, Thorsten Schmidt, Harald Binder (2021): Deep dynamic modeling with just two time points: Can we still allow for individual trajectories?
 > arXiv preprint: https://arxiv.org/abs/2012.00634
 
 ![](figures/example_nonlinear.png)
