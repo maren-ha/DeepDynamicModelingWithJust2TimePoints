@@ -10,6 +10,27 @@ struct simdata
     group2
 end
 
+"""
+    plot_truesolution(group, data::simdata, sol_group1, sol_group2; showdata=true)
+
+Plots the true dynamics of one group according to the underlying ODE solution and the simulated data points on top. 
+
+Inputs: 
+
+    `group`: integer specifying which group (1 or 2) to plot 
+
+    `data`: container of type `simdata` with all the simulated data (time-dependent and baseline variables, time points)
+
+    `sol_group1`: true ODE solution of the first group 
+
+    `sol_group2`: true ODE solution of the second group 
+
+Returns: 
+
+    a plot showing the true underlying ODE solutions as curves and the simulated time-dependent observations 
+    as points on top. The two underlying dimensions of the ODE / the corresponding simulated variables 
+    are color-coded in orange and blue. 
+"""
 function plot_truesolution(group, data::simdata, sol_group1, sol_group2; showdata=true)
     if group == 1
         sol = sol_group1
@@ -42,6 +63,43 @@ function plot_truesolution(group, data::simdata, sol_group1, sol_group2; showdat
     return curplot
 end
 
+"""
+    eval_z_trajectories(xs, x_params,tvals, group1, sol_group1, sol_group2, m, dt; swapcolorcoding::Bool=false)
+
+Callback function to be used during training: Plot the fitted latent space ODE solutions and the encoder values before solving the ODE
+    for some exemplary individuals in the dataset, together with the ground truth underlying ODE trajectories.  
+
+Inputs:
+
+    `xs`: vector of length `n` = n_individuals, where the `i`th element is a (n_vars=p x n_timepoints) matrix 
+        containing the time-dependent variables of the `i`th individual in the dataset
+
+    `x_params`: vector of length `n` = n_individuals, where the `i`th  element is a vector of length (n_baselinevars=q)
+        containing the baseline information for the `i`th individual in the dataset 
+
+    `tvals`: vector of length `n` = n_individuals, where the `i`th element is a vector of length 1 (or more generally n_timepoints_i)
+        containing the time point of the `i`th individual's second measurement (or all the timepoints after the baseline visit)
+
+    `group1`: indices of all individuals in group1 - since [group1, group2] = {1,...,n}, the `group2` indices can be inferred from that 
+
+    `sol_group1`: true ODE solution of the first group 
+
+    `sol_group2`: true ODE solution of the second group 
+
+    `m`: ODE-VAE model of which the latent space should be exemplarily visualized 
+
+    `dt`: time interval in which to use the ODE, needed to ensure correct array dimensions for plotting 
+
+    `swapcolorcoding`: optional keyword argument whether or not to swap the orange - blue color coding for the true underlying trajectories, 
+        as the VAE can arbitrarily flip / rotate the latent representation, sometimes resulting in inverted dimensions, 
+        which can be visually remedied by swapping the color coding there. Default = `false`. 
+
+Returns: 
+
+    A plot with 9 panels representing the latent space of one individual each. The true underlying ODE solutions are shown as dashed curves
+    and the fitted ones obtained from solving the individually parameterized ODE in the latent space are shown as solid curves, 
+    the encoded datapoints are scattered on top. The two latent space dimensions are color-coded in orange and blue. 
+"""
 function eval_z_trajectories(xs, x_params,tvals, group1, sol_group1, sol_group2, m, dt; swapcolorcoding::Bool=false) # look at trajectories of first 9 individuals during training
     plotarray=[]
     for ind in 2:5#9
@@ -77,7 +135,48 @@ function eval_z_trajectories(xs, x_params,tvals, group1, sol_group1, sol_group2,
     display(myplot)
 end
 
-function plot_individual_solutions(ind, xs, x_baseline,tvals, group1, sol_group1, sol_group2, m, dt; swapcolorcoding::Bool=false, showlegend::Bool=true) # look at trajectories of one individual after training 
+"""
+    plot_individual_solutions(ind, xs, x_baseline, tvals, group1, sol_group1, sol_group2, m, dt; swapcolorcoding::Bool=false, showlegend::Bool=true)
+
+Plot the fitted ODE solutions in the latent space of the ODE-VAE `m` and the encoded datapoints before solving the ODE together with 
+    the ground-truth underlying ODE trajectory for one individual, defined by its index `ind`.
+
+Inputs: 
+
+    `ind`: the index of the individual in the dataset, between 1 and `n` = n_individuals
+
+    `xs`: vector of length `n` = n_individuals, where the `i`th element is a (n_vars=p x n_timepoints) matrix 
+        containing the time-dependent variables of the `i`th individual in the dataset
+
+    `x_baseline`: vector of length `n` = n_individuals, where the `i`th  element is a vector of length (n_baselinevars=q)
+        containing the baseline information for the `i`th individual in the dataset 
+
+    `tvals`: vector of length `n` = n_individuals, where the `i`th element is a vector of length 1 (or more generally n_timepoints_i)
+        containing the time point of the `i`th individual's second measurement (or all the timepoints after the baseline visit)
+
+    `group1`: indices of all individuals in group1 - since [group1, group2] = {1,...,n}, the `group2` indices can be inferred from that 
+
+    `sol_group1`: true ODE solution of the first group 
+
+    `sol_group2`: true ODE solution of the second group 
+
+    `m`: ODE-VAE model of which the latent space should be exemplarily visualized 
+
+    `dt`: time interval in which to use the ODE, needed to ensure correct array dimensions for plotting 
+
+    `swapcolorcoding`: optional keyword argument whether or not to swap the orange - blue color coding for the true underlying trajectories, 
+        as the VAE can arbitrarily flip / rotate the latent representation, sometimes resulting in inverted dimensions, 
+        which can be visually remedied by swapping the color coding there. Default = `false`
+
+    `showlegend`: optional keyword argument whether or not to display the plot legend. Default = `true`
+
+Returns: 
+
+    A plot representing the latent space of one individual. The true underlying ODE solutions are shown as dashed curves
+    and the fitted one by solving the individually parameterized ODE in the latent space are shown as solid curves, 
+    the encoded datapoints are scattered on top. The two latent space dimensions are color-coded in orange and blue. 
+"""
+function plot_individual_solutions(ind, xs, x_baseline, tvals, group1, sol_group1, sol_group2, m, dt; swapcolorcoding::Bool=false, showlegend::Bool=true) # look at trajectories of one individual after training 
     curgroup = ind ∈ group1 ? 1 : 2
     colors_truesol = swapcolorcoding ? ["#ff7f0e" "#1f77b4"] : ["#1f77b4" "#ff7f0e"]
     if curgroup == 1
@@ -115,6 +214,37 @@ function plot_individual_solutions(ind, xs, x_baseline,tvals, group1, sol_group1
 
 end
 
+"""
+    allindsplot(group, data::simdata, m, sol_group1, sol_group2; swapcolorcoding::Bool=false, showlegend::Bool=true)
+
+Shows the fitted latent space ODE solutions and the encoded data points from all individuals in one group in one plot, 
+    together with the true underlying ODE trajectory as dashed line. 
+
+Inputs: 
+
+    `group`: integer specifying which group (1 or 2) to plot 
+
+    `data`: container of type `simdata` with all the simulated data (time-dependent and baseline variables, time points)
+
+    `m`: trained ODE-VAE model 
+
+    `sol_group1`: true ODE solution of the first group 
+
+    `sol_group2`: true ODE solution of the second group 
+
+    `swapcolorcoding`: optional keyword argument whether or not to swap the orange - blue color coding for the true underlying trajectories, 
+        as the VAE can arbitrarily flip / rotate the latent representation, sometimes resulting in inverted dimensions, 
+        which can be visually remedied by swapping the color coding there. Default = `false`
+
+    `showlegend`: optional keyword argument whether or not to display the plot legend. Default = `true`
+
+Returns: 
+
+    A plot showing all latent space ODE solutions and the encoded data points from all individuals in one group. 
+    The true underlying ODE solutions are shown as dashed curves and the fitted one by solving the individually 
+    parameterized ODE in the latent space are shown as solid curves, the encoded datapoints are scattered on top. 
+    The two latent space dimensions are color-coded in orange and blue. 
+"""
 function allindsplot(group, data::simdata, m, sol_group1, sol_group2; swapcolorcoding::Bool=false, showlegend::Bool=true)
     # get data
     xs, x_params, tvals = data.xs, data.x_baseline, data.tvals
@@ -187,6 +317,49 @@ function allindsplot(group, data::simdata, m, sol_group1, sol_group2; swapcolorc
 
 end
 
+"""
+    plot_batch_solution(ind, xs, x_baseline, tvals, group1, sol_group1, sol_group2, m, dt; swapcolorcoding::Bool=false, showlegend::Bool=true)
+
+Plot the fitted ODE solutions in the latent space of the ODE-VAE `m` and the encoded datapoints before solving the ODE together with 
+    the ground-truth underlying ODE trajectory for a batch of individuals around the reference individual defined by its index `ind`.
+
+Inputs: 
+
+    `ind`: the index of the reference individual in the dataset, between 1 and `n` = n_individuals
+
+    `xs`: vector of length `n` = n_individuals, where the `i`th element is a (n_vars=p x n_timepoints) matrix 
+        containing the time-dependent variables of the `i`th individual in the dataset
+
+    `x_baseline`: vector of length `n` = n_individuals, where the `i`th  element is a vector of length (n_baselinevars=q)
+        containing the baseline information for the `i`th individual in the dataset 
+
+    `tvals`: vector of length `n` = n_individuals, where the `i`th element is a vector of length 1 (or more generally n_timepoints_i)
+        containing the time point of the `i`th individual's second measurement (or all the timepoints after the baseline visit)
+
+    `group1`: indices of all individuals in group1 - since [group1, group2] = {1,...,n}, the `group2` indices can be inferred from that 
+
+    `sol_group1`: true ODE solution of the first group 
+
+    `sol_group2`: true ODE solution of the second group 
+
+    `m`: ODE-VAE model of which the latent space should be exemplarily visualized 
+
+    `dt`: time interval in which to use the ODE, needed to ensure correct array dimensions for plotting 
+
+    `swapcolorcoding`: optional keyword argument whether or not to swap the orange - blue color coding for the true underlying trajectories, 
+        as the VAE can arbitrarily flip / rotate the latent representation, sometimes resulting in inverted dimensions, 
+        which can be visually remedied by swapping the color coding there. Default = `false`
+
+    `showlegend`: optional keyword argument whether or not to display the plot legend. Default = `true`
+
+Returns: 
+
+    A plot representing the latent space of one batch of individuals around the reference individual `ind`. 
+    The true underlying ODE solutions are shown as dashed curves and the fitted ones obtained from solving the 
+    individually parameterized ODE in the latent space for each individual in the batch are shown as solid curves, 
+    the encoded datapoints for each individual in the batch are scattered on top. 
+    The two latent space dimensions are color-coded in orange and blue. 
+"""
 function plot_batch_solution(ind, xs, x_baseline, tvals, group1, sol_group1, sol_group2, m, dt; swapcolorcoding::Bool=false, showlegend::Bool=true)
     distmat = getdistmat_odesols_mean(m, xs, x_baseline; centralise=true);
     minibatches, batch_weights = findminibatches_distmat(distmat, batchsize, kernel);
